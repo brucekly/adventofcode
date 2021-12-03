@@ -1,4 +1,4 @@
-(require 'uiop)
+(require "asdf")
 
 (defparameter *input*
   (mapcar (lambda (x)
