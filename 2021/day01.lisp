@@ -1,4 +1,4 @@
-(require 'uiop)
+(require "asdf")
 
 (defparameter *input* (uiop:read-file-forms "input/day01.txt"))
 
