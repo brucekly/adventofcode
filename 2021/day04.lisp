@@ -51,15 +51,10 @@
 	       (subseq numbers 0 win-number)))
        (nth (1- win-number) numbers))))
 
-(defun winning-board (boards numbers)
+(defun choose-board (boards numbers f)
   (let ((win-numbers (loop for board in boards
 			   collect (board-win-number board numbers))))
-    (nth (position (apply #'min win-numbers) win-numbers) boards)))
+    (nth (position (apply f win-numbers) win-numbers) boards)))
 
-(defun losing-board (boards numbers)
-  (let ((win-numbers (loop for board in boards
-			   collect (board-win-number board numbers))))
-    (nth (position (apply #'max win-numbers) win-numbers) boards)))
-
-(print (board-score (winning-board *boards* *numbers*) *numbers*))
-(print (board-score (losing-board *boards* *numbers*) *numbers*))
+(print (board-score (choose-board *boards* *numbers* #'min) *numbers*))
+(print (board-score (choose-board *boards* *numbers* #'max) *numbers*))
