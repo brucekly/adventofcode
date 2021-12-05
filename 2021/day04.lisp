@@ -1,60 +1,44 @@
 (require "asdf")
+(ql:quickload "cl-ppcre")
+(ql:quickload "split-sequence")
 
 (defparameter *input* (uiop:read-file-lines "input/day04.txt"))
 
 (defparameter *winning-configurations*
   (loop for n below 5
-	collect (mapcar (lambda (x) (+ x (* 5 n))) (loop for x below 5 collect x))
-	collect (mapcar (lambda (x) (+ x n)) (loop for x below 5 collect (* 5 x)))))
+	collect (mapcar (lambda (x) (+ x (* 5 n)))
+			(loop for x below 5 collect x))
+	collect (mapcar (lambda (x) (+ x n))
+			(loop for x below 5 collect (* 5 x)))))
 
-(defun split-paragraphs (input)
-  (loop with paragraph
-	for e in input
-	if (equal e "")
-	  collect (nreverse paragraph) into paragraphs and do (setf paragraph nil)
-	else
-	  do (push e paragraph)
-	finally
-	   (return (concatenate 'list paragraphs (list (nreverse paragraph))))))
+(defun str-to-ints (str)
+  (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" str)))
 
-(defun get-board (board)
-  (with-input-from-string (in (format nil "~{~A ~}" board))
-    (loop for x = (read in nil nil) while x collect x)))
-
-(let ((paragraphs (split-paragraphs *input*)))
-  (defparameter *boards*
-    (mapcar #'get-board (cdr paragraphs)))
-  (defparameter *numbers*
-    (mapcar #'parse-integer
-	    (uiop:split-string (caar paragraphs) :separator ","))))
-
-(defun get-matches (board nums)
-  (loop for num in nums
-	collect (position num board)))
+(defun parse-board (board)
+  (str-to-ints (format nil "~{~A ~}" board)))
 
 (defun winning? (matches)
   (loop for configuration in *winning-configurations*
-	do (if (subsetp configuration matches)
-	       (return t))))
+	do (if (subsetp configuration matches) (return t))))
 
-(defun board-win-number (board numbers)
-    (loop for n below (length numbers)
-       do (let ((nums (subseq numbers 0 n)))
-	    (if (winning? (get-matches board nums))
-		(return n)))))
+(defun board-score (board numbers n)
+  (* (apply #'+ (set-difference board (subseq numbers 0 n)))
+     (nth (1- n) numbers)))
 
-(defun board-score (board numbers)
-  (let ((win-number (board-win-number board numbers)))
-    (* (apply #'+
-	      (set-difference
-	       board
-	       (subseq numbers 0 win-number)))
-       (nth (1- win-number) numbers))))
+(defun evaluate-board (board numbers)
+  (loop for n from 0
+	for number in numbers
+	for matches = (list (position number board))
+	  then (append matches (list (position number board)))
+        if (winning? matches) do
+	  (return (cons n (board-score board numbers (1+ n))))))
 
-(defun choose-board (boards numbers f)
-  (let ((win-numbers (loop for board in boards
-			   collect (board-win-number board numbers))))
-    (nth (position (apply f win-numbers) win-numbers) boards)))
+(defun find-score (evaluations fn)
+  (cdr (assoc (apply fn (mapcar #'car evaluations)) evaluations)))
 
-(print (board-score (choose-board *boards* *numbers* #'min) *numbers*))
-(print (board-score (choose-board *boards* *numbers* #'max) *numbers*))
+(let* ((paragraphs (split-sequence:split-sequence "" *input* :test #'equal))
+       (boards (mapcar #'parse-board (cdr paragraphs)))
+       (numbers (str-to-ints (caar paragraphs)))
+       (evaluations (mapcar (lambda (b) (evaluate-board b numbers)) boards)))
+  (print (find-score evaluations #'min))
+  (print (find-score evaluations #'max)))
