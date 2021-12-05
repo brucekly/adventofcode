@@ -1,57 +1,35 @@
 (require "asdf")
+(ql:quickload "cl-ppcre")
 
 (defparameter *input* (uiop:read-file-lines "input/day05.txt"))
 
-(defun str-to-coords (str)
-  (apply #'cons
-	 (mapcar #'parse-integer
-		 (uiop:split-string str :separator ","))))
+(defun str-to-ints (str)
+  (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" str)))
 
-(defun str-to-points (str)
-  (mapcar #'str-to-coords
-	  (remove-if (lambda (s) (string= s ""))
-		     (uiop:split-string str :separator " ->"))))
+(defun str-to-line (l)
+  (destructuring-bind (x1 y1 x2 y2) l
+    (let ((dx (signum (- x2 x1)))
+	  (dy (signum (- y2 y1))))
+      (loop for (x y) = (list x1 y1)
+	      then (list (+ x dx) (+ y dy))
+	    collect (list x y)
+	    until (and (= x x2) (= y y2))))))
 
-(defun normalise (int)
-  (if (= 0 int)
-      0
-      (/ int (abs int))))
+(defun count-overlaps (lines &optional (table (make-hash-table :test #'equal)))
+  (dolist (l lines)
+    (destructuring-bind (x1 y1 x2 y2) l
+      (let ((dx (signum (- x2 x1)))
+	    (dy (signum (- y2 y1))))
+	(loop for (x y) = (list x1 y1)
+		then (list (+ x dx) (+ y dy))
+              do (incf (gethash (list x y) table 0))
+	      until (and (= x x2) (= y y2))))))
+  (loop for v being the hash-values of table count (>= v 2)))
 
-(defun direction (a b)
-  (cons (normalise (- (car b) (car a)))
-	(normalise (- (cdr b) (cdr a)))))
+(defun diagonal? (line)
+  (destructuring-bind (x1 y1 x2 y2) line
+    (and (not (= x1 x2)) (not (= y1 y2)))))
 
-(defun coord+ (a b)
-  (cons (+ (car a) (car b))
-	(+ (cdr a) (cdr b))))
-
-(defun str-to-line (str)
-  (destructuring-bind
-      (a b) (str-to-points str)
-    (let ((dir (direction a b)))
-      (loop for point = a
-	      then
-	      (coord+ point dir)
-	    collect point
-	    until (equal point b)))))
-
-(defun count-overlapping-points (input)
-  (let ((table (make-hash-table :test #'equal)))
-    (loop for str in input
-	  do (loop for point in (str-to-line str)
-		   do (incf (gethash point table 0))))
-    (loop for v being the hash-values in table
-          if (>= v 2)
-            sum 1 into count
-	  finally (return count))))
-
-(defun remove-diagonals (input)
-  (remove-if
-   (lambda (x)
-     (let ((dir (apply #'direction (str-to-points x))))
-       (= (abs (car dir))
-	  (abs (cdr dir)))))
-   input))
-
-(print (count-overlapping-points (remove-diagonals *input*)))
-(print (count-overlapping-points *input*))
+(let ((lines (mapcar #'str-to-ints *input*)))
+  (print (count-overlaps (remove-if #'diagonal? lines)))
+  (print (count-overlaps lines)))
