@@ -26,10 +26,10 @@
 	      until (and (= x x2) (= y y2))))))
   (loop for v being the hash-values of table count (>= v 2)))
 
-(defun diagonal? (line)
+(defun not-straight? (line)
   (destructuring-bind (x1 y1 x2 y2) line
     (and (not (= x1 x2)) (not (= y1 y2)))))
 
 (let ((lines (mapcar #'str-to-ints *input*)))
-  (print (count-overlaps (remove-if #'diagonal? lines)))
+  (print (count-overlaps (remove-if #'not-straight? lines)))
   (print (count-overlaps lines)))
